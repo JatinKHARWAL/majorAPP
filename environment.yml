@@ -1,0 +1,12 @@
+name: streamlit_app_env
+channels:
+  - defaults
+dependencies:
+  - python=3.8
+  - pip
+  - streamlit
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - streamlit_webrtc
