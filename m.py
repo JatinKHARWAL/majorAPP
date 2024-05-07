@@ -1,10 +1,9 @@
 import streamlit as st
-from streamlit_webrtc import webrtc_streamer
-import av
 import numpy as np
 import mediapipe as mp
 from keras.models import load_model
 import webbrowser
+from PIL import Image
 
 model = load_model("model.h5")
 label = np.load("labels.npy")
@@ -15,17 +14,23 @@ drawing = mp.solutions.drawing_utils
 
 st.header("Emotion Based Music Recommender")
 
-if "emotion" not in st.session_state:
-    st.session_state["emotion"] = ""
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-class EmotionProcessor:
-    def recv(self, frame):
-        frm = frame.to_ndarray(format="bgr24")
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
+    st.image(image, caption='Uploaded Image', use_column_width=True)
 
+    with st.spinner('Processing...'):
         #####################################
-        frm = cv2.flip(frm, 1)
+        # Perform Emotion Analysis on the uploaded image
+        # Replace this part with your emotion analysis code
+        # For example, you can use OpenCV to detect faces and perform emotion analysis
+        # Here's a simplified example:
 
-        res = holis.process(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
+        frm = np.array(image)
+        frm = np.flip(frm, axis=-1)  # Convert RGB to BGR
+
+        res = holis.process(frm)
 
         lst = []
 
@@ -55,30 +60,38 @@ class EmotionProcessor:
             pred = label[np.argmax(model.predict(lst))]
 
             print(pred)
-            st.session_state["emotion"] = pred
+            st.success(f"Predicted Emotion: {pred}")
 
-        drawing.draw_landmarks(frm, res.face_landmarks, holistic.FACEMESH_TESSELATION,
-                               landmark_drawing_spec=drawing.DrawingSpec(color=(0, 0, 255), thickness=-1,
-                                                                         circle_radius=1),
-                               connection_drawing_spec=drawing.DrawingSpec(thickness=1))
-        drawing.draw_landmarks(frm, res.left_hand_landmarks, hands.HAND_CONNECTIONS)
-        drawing.draw_landmarks(frm, res.right_hand_landmarks, hands.HAND_CONNECTIONS)
+        try:
+            if res.face_landmarks:  # Check if face landmarks are available before drawing
+                drawing.draw_landmarks(
+                    frm, res.face_landmarks, holistic.FACEMESH_TESSELATION
+                )
+            if res.left_hand_landmarks:  # Check if left hand landmarks are available before drawing
+                drawing.draw_landmarks(
+                    frm, res.left_hand_landmarks, hands.HAND_CONNECTIONS
+                )
 
+            if res.right_hand_landmarks:  # Check if right hand landmarks are available before drawing
+                drawing.draw_landmarks(
+                    frm, res.right_hand_landmarks, hands.HAND_CONNECTIONS
+                )
+        except Exception as e:
+            print("Error occurred while drawing landmarks:", e)
+
+        st.image(frm, caption='Processed Image', use_column_width=True)
         #####################################
 
-        return av.VideoFrame.from_ndarray(frm, format="bgr24")
+    btn = st.button("Recommend me songs")
 
+    if btn:
+        # Perform action based on emotion prediction
+        # For example, open a web page with recommended songs
+        if not pred:
+            st.warning("Please let me capture your emotion first")
+        else:
+            # Perform action based on predicted emotion
+            # For demonstration, open a YouTube search page with the predicted emotion
+            webbrowser.open(f"https://www.youtube.com/results?search_query={pred}+songs")
 
-lang = st.text_input("Language")
-singer = st.text_input("Singer")
-
-if lang and singer and st.session_state["emotion"] == "":
-    webrtc_streamer(key="example", video_processor_factory=EmotionProcessor)
-
-if st.button("Recommend me songs"):
-    if not st.session_state["emotion"]:
-        st.warning("Please let me capture your emotion first")
-    else:
-        webbrowser.open(f"https://www.youtube.com/results?search_query={lang}+{st.session_state['emotion']}+song+{singer}")
-        st.session_state["emotion"] = ""
 
